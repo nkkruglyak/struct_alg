@@ -8,7 +8,6 @@ import (
     "log"
     "io"
     "io/ioutil"
-    "fmt"
 )
 
 type Vertex struct {
@@ -86,41 +85,34 @@ func (g Graph) GetVertex (id string) (v Vertex){
 
 func (graph *Graph) PaintGraph () () {
     Info.Println("Begin Paint Graph")
-    color := 0
-    count_of_nopainted_vertices := len(graph.NoPaintedVertices)
+    color := 1
     var vertex Vertex
 
-    for count_of_nopainted_vertices > 0 {
-        for ind := 0; ind < count_of_nopainted_vertices; ind++ {
+    for len(graph.NoPaintedVertices) > 0 {
+        for ind := 0; ind < len(graph.NoPaintedVertices); ind++ {
             vertex = graph.NoPaintedVertices[ind]
 
             neighbour_colors := vertex.GetColorsOfNeighbours(graph)
 
             if neighbour_colors[color] {
-                Trace.Println(
-                    fmt.Sprintf(
-                        "Can't paint %s vertex to color %d",
-                        vertex.Id,
-                        color,
-                    ),
+                Info.Printf(
+                    "Can't paint %s vertex to color %d",
+                    vertex.Id,
+                    color,
                 )
                 continue
             }
 
             vertex.Paint(color)
-            Trace.Println(
-                fmt.Sprintf(
-                    "Paint %s vertex to color %d",
-                    vertex.Id,
-                    color,
-                ),
+            Info.Printf(
+                "Paint %s vertex to color %d",
+                vertex.Id,
+                color,
             )
 
-            cut_el_from_list(graph.NoPaintedVertices, ind)
+            graph.NoPaintedVertices = cut_el_from_list(graph.NoPaintedVertices, ind)
 
-            put_el_to_list(graph.PaintedVertices, vertex, -1)
-
-            count_of_nopainted_vertices -= 1
+            graph.PaintedVertices = put_el_to_list(graph.PaintedVertices, vertex, -1)
         }
         color += 1
     }
