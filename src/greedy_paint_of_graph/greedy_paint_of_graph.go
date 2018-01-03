@@ -18,8 +18,8 @@ type Vertex struct {
 }
 
 type Graph struct {
-    PaintedVertices   []Vertex
-    NoPaintedVertices []Vertex
+    PaintedVertices   map[string]Vertex
+    NoPaintedVertices map[string]Vertex
 }
 
 var (
@@ -62,88 +62,65 @@ func (v *Vertex) GetColorsOfNeighbours (g *Graph)(map[int]bool) {
     for _,id := range v.NeighboursIds {
           neighbour := g.GetVertex(id)
           colors[neighbour.Color] = true
+
     }
     return colors
 }
 
-func (g Graph) GetVertex (id string) (v Vertex){
-
-    for _, v := range  g.PaintedVertices {
-        if v.Id == id {
-            return v
-        }
+func (graph Graph) GetVertex (id string) (Vertex){
+    //я уверена что это это можно сделать изящнее
+    vertex := graph.PaintedVertices[id]
+    if vertex.Id == "" {
+        vertex = graph.NoPaintedVertices[id]
     }
+    return vertex
+}
 
-    for _, v := range  g.NoPaintedVertices {
-        if v.Id == id {
-            return v
-        }
-    }
-
-    return  Vertex{}
+func (graph *Graph) PaintVertex (vertex Vertex, color int) {
+    vertex.Paint(color)
+    delete(graph.NoPaintedVertices, vertex.Id)
+    graph.PaintedVertices[vertex.Id] = vertex
 }
 
 func (graph *Graph) PaintGraph () () {
     Info.Println("Begin Paint Graph")
     color := 1
-    var vertex Vertex
-
     for len(graph.NoPaintedVertices) > 0 {
-        for ind := 0; ind < len(graph.NoPaintedVertices); ind++ {
-            vertex = graph.NoPaintedVertices[ind]
-
+        for _, vertex := range graph.NoPaintedVertices {
             neighbour_colors := vertex.GetColorsOfNeighbours(graph)
-
             if neighbour_colors[color] {
-                Info.Printf(
-                    "Can't paint %s vertex to color %d",
-                    vertex.Id,
-                    color,
-                )
                 continue
             }
-
-            vertex.Paint(color)
+            graph.PaintVertex(vertex, color)
             Info.Printf(
                 "Paint %s vertex to color %d",
                 vertex.Id,
                 color,
             )
-
-            graph.NoPaintedVertices = cut_el_from_list(graph.NoPaintedVertices, ind)
-
-            graph.PaintedVertices = put_el_to_list(graph.PaintedVertices, vertex, -1)
         }
         color += 1
     }
 }
 
-func AddFirstVertexOfEdgeToMap(graph_as_map map[string][]string, edge []string) {
-    neighbours := graph_as_map[edge[0]]
+func AddFirstVertexOfEdgeToMap(vertex_neighbours_map map[string][]string, edge []string) {
+    neighbours := vertex_neighbours_map[edge[0]]
     if len(neighbours) > 0 {
-        graph_as_map[edge[0]] = append(graph_as_map[edge[0]], edge[1])
+        vertex_neighbours_map[edge[0]] = append(vertex_neighbours_map[edge[0]], edge[1])
     } else {
-        graph_as_map[edge[0]] = []string{edge[1]}
+        vertex_neighbours_map[edge[0]] = []string{edge[1]}
     }
 }
 
-func AddEdgeToMap(graph_as_map map[string][]string, edge []string) {
-    AddFirstVertexOfEdgeToMap(graph_as_map, edge)
-    AddFirstVertexOfEdgeToMap(graph_as_map, []string{edge[1],edge[0]})
+func AddEdgeToMap(vertex_neighbours_map map[string][]string, edge []string) {
+    AddFirstVertexOfEdgeToMap(vertex_neighbours_map, edge)
+    AddFirstVertexOfEdgeToMap(vertex_neighbours_map, []string{edge[1],edge[0]})
 }
 
-// сравнить по памяти времени с методом
-//function (g Graph) GetVertex (id int) {
-//    return g.Vertex[id]
-//}
-//
-// type Graph struct {
-//    Vertices []Vertex
-// }
-
-// readGraphFromFile reads a whole file into memory
-// and returns a slice of its lines.
-func readGraphFromFile(path string) (Graph, error) {
+// initGraphFromFile init graph woth edge by line
+// if line equals "a b" add graph edge ab
+// if line equals "c" add graph edge c
+// N.B.!there are not validation of graf like as "a b\na"
+func initGraphFromFile(path string) (Graph, error) {
     file, err := os.Open(path)
     if err != nil {
         Error.Println("Can't open file")
@@ -154,28 +131,37 @@ func readGraphFromFile(path string) (Graph, error) {
     edge := make([]string,2)
     vertices := []Vertex{}
     sCaner := bufio.NewScanner(file)
-    graph_as_map := make(map[string][]string)
+    vertex_neighbours_map := make(map[string][]string)
 
     for sCaner.Scan() {
         edge = strings.Split(sCaner.Text(), " ")
-        AddEdgeToMap(graph_as_map, edge)
+        switch len(edge) {
+        case 2:
+            AddEdgeToMap(vertex_neighbours_map, edge)
+        case 1:
+            vertex_neighbours_map[edge[0]] = []string{}
+        }
         Info.Printf("Added edge %v",edge)
     }
 
-    for vertex, neighbours := range graph_as_map {
+    graph := Graph{
+        NoPaintedVertices: make(map[string]Vertex),
+        PaintedVertices: make(map[string]Vertex),
+    }
+
+    for vertex_id, neighbours_ids := range vertex_neighbours_map {
         vertex := Vertex{
-            Id:vertex,
-            NeighboursIds:neighbours,
+            Id:vertex_id,
+            NeighboursIds:neighbours_ids,
             }
         vertices = append(vertices, vertex)
+        graph.NoPaintedVertices[vertex.Id] = vertex
         Info.Printf(
             "Added vertex %s with neighbours %v",
             vertex.Id,
             vertex.NeighboursIds,
-            )
+        )
     }
-
-    graph := Graph{NoPaintedVertices:vertices}
 
     Info.Printf(
         "Init graph with %d painted and %d no painted vertices.",
@@ -183,29 +169,6 @@ func readGraphFromFile(path string) (Graph, error) {
         len(graph.NoPaintedVertices),
     )
     return graph, sCaner.Err()
-}
-
-//хорошое место для интерфейсов
-//метод конечно долэен работать для всех списков
-func cut_el_from_list (list []Vertex, ind int) ([]Vertex) {
-    n := len(list)
-    new_list := make([]Vertex, n - 1)
-    at := copy(new_list, list[:ind])
-    copy(new_list[at:],list[ind+1:])
-    return new_list
-}
-
-func put_el_to_list(list []Vertex, v Vertex, ind int) ([]Vertex) {
-    switch ind {
-    case -1:
-        list = append(list, v)
-    default:
-        new_list := make([]Vertex, len(list) + 1)
-        at := copy(new_list, list[ind:])
-        new_list[at] = v
-        copy(new_list[at+1:], list[ind+1:])
-    }
-    return list
 }
 
 func main () (){
@@ -219,7 +182,7 @@ func main () (){
 
     flag.Parse()
 
-    graph,err := readGraphFromFile(*filePtr)
+    graph,err := initGraphFromFile(*filePtr)
     if err != nil {
         Error.Fatal("Can't init graph")
     }
