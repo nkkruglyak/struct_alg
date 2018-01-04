@@ -8,6 +8,7 @@ import (
     "log"
     "io"
     "io/ioutil"
+    "fmt"
 )
 
 type Vertex struct {
@@ -29,6 +30,7 @@ var (
     Error   *log.Logger
 )
 
+// custom_log
 func Init(
     traceHandle io.Writer,
     infoHandle io.Writer,
@@ -52,11 +54,13 @@ func Init(
         log.Ldate|log.Ltime|log.Lshortfile)
 }
 
+// custom_graph
 func (v *Vertex) Paint (color int) {
     v.Color = color
     v.IsPainted = true
 }
 
+// custom_graph
 func (v *Vertex) GetColorsOfNeighbours (g *Graph)(map[int]bool) {
     colors := make(map[int]bool)
     for _,id := range v.NeighboursIds {
@@ -67,6 +71,7 @@ func (v *Vertex) GetColorsOfNeighbours (g *Graph)(map[int]bool) {
     return colors
 }
 
+// custom_graph
 func (graph Graph) GetVertex (id string) (Vertex){
     //я уверена что это это можно сделать изящнее
     vertex := graph.PaintedVertices[id]
@@ -76,12 +81,14 @@ func (graph Graph) GetVertex (id string) (Vertex){
     return vertex
 }
 
+// custom_graph
 func (graph *Graph) PaintVertex (vertex Vertex, color int) {
     vertex.Paint(color)
     delete(graph.NoPaintedVertices, vertex.Id)
     graph.PaintedVertices[vertex.Id] = vertex
 }
 
+//greedy
 func (graph *Graph) PaintGraph () () {
     Info.Println("Begin Paint Graph")
     color := 1
@@ -102,6 +109,7 @@ func (graph *Graph) PaintGraph () () {
     }
 }
 
+//greedy
 func AddFirstVertexOfEdgeToMap(vertex_neighbours_map map[string][]string, edge []string) {
     neighbours := vertex_neighbours_map[edge[0]]
     if len(neighbours) > 0 {
@@ -111,16 +119,21 @@ func AddFirstVertexOfEdgeToMap(vertex_neighbours_map map[string][]string, edge [
     }
 }
 
+//as 2 - greedy
 func AddEdgeToMap(vertex_neighbours_map map[string][]string, edge []string) {
     AddFirstVertexOfEdgeToMap(vertex_neighbours_map, edge)
     AddFirstVertexOfEdgeToMap(vertex_neighbours_map, []string{edge[1],edge[0]})
 }
 
-// initGraphFromFile init graph woth edge by line
+
+//custom_io
+//1) rerurn list of edges and vertices
+//2) define custom InitGraphFromEdgesAndVertices -- greedy
+// InitGraphFromFile init graph woth edge by line
 // if line equals "a b" add graph edge ab
 // if line equals "c" add graph edge c
 // N.B.!there are not validation of graf like as "a b\na"
-func initGraphFromFile(path string) (Graph, error) {
+func InitGraphFromFile(path string) (Graph, error) {
     file, err := os.Open(path)
     if err != nil {
         Error.Println("Can't open file")
@@ -171,20 +184,71 @@ func initGraphFromFile(path string) (Graph, error) {
     return graph, sCaner.Err()
 }
 
+//greedy
+func DumpPaintedGraphToList(graph Graph) ([]string) {
+    dump_data := make([]string, len(graph.PaintedVertices))
+    i := 0
+    for _, vertex := range graph.PaintedVertices {
+        dump_vertex := fmt.Sprintf(
+            "vertex %s color %d",
+            vertex.Id,
+            vertex.Color, 
+        )
+        dump_data[i] = dump_vertex
+        i += 1
+    }
+    return dump_data
+}
+
+//custom_io
+func DumpDataToFile (dump_data []string, path string) (error) {
+    file, err := os.Open(path)
+    
+    if err != nil {
+        Error.Println("Can't open file")
+        file, err = os.Create(path)
+        if err != nil {
+            Error.Println("Can't create file")
+        }
+        return err
+    }
+    
+    defer file.Close()
+    
+    writer := bufio.NewWriter(file)
+    
+    for _, data := range dump_data {
+        writer.WriteString(data)
+    }
+    writer.Flush()
+    return nil
+}
+
 func main () (){
     Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
 
-    filePtr := flag.String(
-        "file",
+    input_file := flag.String(
+        "input",
         "testdata_1",
         "path to file with graph description",
     )
 
+    output_file := flag.String(
+        "output",
+        "result_1",
+        "path to file with painted graph",
+    )
+
     flag.Parse()
 
-    graph,err := initGraphFromFile(*filePtr)
+    graph,err := InitGraphFromFile(*input_file)
     if err != nil {
         Error.Fatal("Can't init graph")
     }
     graph.PaintGraph()
+    data := DumpPaintedGraphToList(graph)
+    err = DumpDataToFile(data, *output_file)
+    if err != nil {
+        Error.Fatal("Can't dump graph")
+    }
 }
