@@ -2,14 +2,12 @@ package main
 
 import (
     "os"
-    "bufio"
-    "strings"
     "flag"
     "log"
     "io"
     "io/ioutil"
-    "fmt"
     g "custom_graph"
+    ci "custom_io"
 )
 
 var (
@@ -43,7 +41,7 @@ func Init(
 }
 
 
-func (graph *Graph) PaintGraph () () {
+func PaintGraph (graph *g.Graph) () {
     Info.Println("Begin Paint Graph")
     color := 1
     for len(graph.NoPaintedVertices) > 0 {
@@ -63,39 +61,6 @@ func (graph *Graph) PaintGraph () () {
     }
 }
 
-//custom_io
-//1) rerurn list of edges and vertices
-//2) define custom InitGraphFromEdgesAndVertices -- greedy
-// ReadVerticesFromFile init graph woth edge by line
-// if line equals "a b" add graph edge ab
-// if line equals "c" add graph edge c
-// N.B.!there are not validation of graf like as "a b\na"
-func ReadVerticesFromFile(path string) ([][]string,[]string, error) {
-    file, err := os.Open(path)
-    edges := [][]string{}
-    vertices := []string{}
-    if err != nil {
-        Error.Println("Can't open file")
-        return edges, vertices, err
-    }
-
-    edge := make([]string, 2)
-    defer file.Close()
-    sCaner := bufio.NewScanner(file)
-    for sCaner.Scan() {
-        edge = strings.Split(sCaner.Text(), " ")
-        switch len(edge) {
-        case 2:
-            edges = append(edges, edge)
-        case 1:
-            vertices = append(vertices, edge[0])
-        }
-        Info.Printf("Added edge %v", edge)
-    }
-    return edges, vertices, nil
-}
-
-
 func main () (){
     Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
 
@@ -113,13 +78,18 @@ func main () (){
 
     flag.Parse()
 
-    graph,err := ReadVerticesFromFile(*input_file)
+    edges, vertices, err := ci.ReadVerticesFromFile(*input_file, Error, Info)
+
     if err != nil {
         Error.Fatal("Can't init graph")
     }
-    graph.PaintGraph()
+
+    graph := g.InitGraph(edges, vertices, Info)
+
+    PaintGraph(graph)
     data := graph.DumpPaintedGraphToList()
-    err = DumpDataToFile(data, *output_file)
+    Info.Println(data)
+    err = ci.DumpDataToFile(data, *output_file, Info)
     if err != nil {
         Error.Fatal("Can't dump graph")
     }

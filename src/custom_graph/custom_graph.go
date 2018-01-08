@@ -1,13 +1,7 @@
 package custom_graph
 
 import (
-	"os"
-	"bufio"
-	"strings"
-	"flag"
 	"log"
-	"io"
-	"io/ioutil"
 	"fmt"
 )
 
@@ -22,7 +16,6 @@ type Graph struct {
 	PaintedVertices   map[string]Vertex
 	NoPaintedVertices map[string]Vertex
 }
-
 
 // custom_graph
 func (v *Vertex) Paint (color int) {
@@ -74,7 +67,7 @@ func AddEdgeToMap(vertex_neighbours_map map[string][]string, edge []string) {
 	AddFirstVertexOfEdgeToMap(vertex_neighbours_map, []string{edge[1],edge[0]})
 }
 
-func InitGraph(edges [][]string, alone_vertices [] string, Info *log.Logger) (Graph) {
+func InitGraph(edges [][]string, alone_vertices [] string, Info *log.Logger) (*Graph) {
 	vertices := []Vertex{}
 	vertex_neighbours_map := make(map[string][]string)
 
@@ -110,16 +103,15 @@ func InitGraph(edges [][]string, alone_vertices [] string, Info *log.Logger) (Gr
 		len(graph.PaintedVertices),
 		len(graph.NoPaintedVertices),
 	)
-	return graph
+	return &graph
 }
 
-
-func (graph Graph) DumpPaintedGraphToList() ([]string) {
+func (graph *Graph) DumpPaintedGraphToList() ([]string) {
 	dump_data := make([]string, len(graph.PaintedVertices))
 	i := 0
 	for _, vertex := range graph.PaintedVertices {
 		dump_vertex := fmt.Sprintf(
-			"vertex %s color %d",
+			"vertex %s color %d\n",
 			vertex.Id,
 			vertex.Color,
 		)
